@@ -94,7 +94,7 @@ def main(source, target):
     for src, dest in zip(game_paths, new_game_dirs):
         dest_path = os.path.join(target_path, dest)
         copy_and_overwrite(src, dest_path)
-        compile_game_code(dest_path)
+        #compile_game_code(dest_path)
 
     json_path = os.path.join(target_path, "metadata.json")
     make_json_metadata_file(json_path, new_game_dirs)
