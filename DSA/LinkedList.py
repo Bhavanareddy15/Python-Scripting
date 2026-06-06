@@ -15,6 +15,7 @@ class LinkedList:
             curr.next = Node(val)
             curr = curr.next
         return head
+    
 
     # prints linked list
     def print_list(self, head):
@@ -40,11 +41,17 @@ class LinkedList:
 
 
 
-
+#reverse a ll
 ll = LinkedList()
 head = ll.build([1, 2, 3, 4, 5])
 ll.print_list(head)
 head = ll.reverse_list(head)
 ll.print_list(head)
+
+# Detect a Cycle in a Linked List
+ll = LinkedList()
+head = ll.build([1, 2, 3, 4, 5])
+
+
 
 

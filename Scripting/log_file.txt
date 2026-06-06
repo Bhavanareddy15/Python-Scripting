@@ -1,0 +1,10 @@
+2024-01-01 ERROR disk full
+2024-01-01 INFO server started
+2024-01-01 ERROR timeout
+2024-01-02 WARNING low memory
+2024-01-02 INFO backup started
+2024-01-02 ERROR disk full
+2024-01-03 INFO server started
+2024-01-03 WARNING high cpu
+2024-01-03 ERROR timeout
+2024-01-03 ERROR out of memory

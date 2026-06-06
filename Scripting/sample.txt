@@ -1,0 +1,6 @@
+The quick brown fox jumps over the lazy dog.
+The dog barked at the fox, and the fox ran away.
+A quick brown dog outpaces a lazy fox.
+The fox and the dog are not friends, but the cat and the dog are.
+Python is quick to learn and quick to use.
+The lazy cat sat on the mat while the dog and fox played.
