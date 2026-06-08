@@ -13,7 +13,7 @@ log = {}
 
 with open(file_path, "r") as file:
     for line in file:
-        parts = line.strip().split()
+        parts = line.split()
         
         if not parts:
             continue

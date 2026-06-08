@@ -16,8 +16,10 @@ with open(file_path, 'r') as file:
         
         log[date][type] += 1
 
-for date in log:
-    print(f'{date} -> {log[date]}')
+
+for date, levels in log.items():
+    summary = ", ".join(f"{level}: {count}" for level, count in sorted(levels.items()))
+    print(f'{date} -> {summary}')
 
 
 
