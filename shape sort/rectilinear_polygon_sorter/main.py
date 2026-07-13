@@ -2,9 +2,9 @@
 Entry point. Reads coordinate sets from an input file (default:
 input/coordinates.txt; override with a command-line argument), one test
 case per line, each line a Python-style list of (x, y) tuples. Sorts
-each into boundary order, and saves a labeled plot per test case to
-output/<input_filename>_output/testcase<N>.png -- e.g. running against
-coordinates.txt saves into output/coordinates_output/.
+each into boundary order (handling holes automatically), and saves a
+labeled plot per test case to output/<input_filename>_output/testcase<N>.png
+-- e.g. running against coordinates.txt saves into output/coordinates_output/.
 
 Run from anywhere -- paths are anchored to this file's location, not
 the current working directory.
@@ -19,8 +19,8 @@ import os
 import sys
 import ast
 
-from src.polygon_sort import sort_rectilinear_polygon
-from src.visualize import plot_sorted_polygon
+from src.polygon_sort import sort_rectilinear_polygon_with_holes
+from src.visualize import plot_sorted_polygon, plot_polygon_with_holes
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_INPUT_NAME = "coordinates.txt"
@@ -72,10 +72,15 @@ def main():
     for i, points in enumerate(test_cases, start=1):
         name = f"testcase{i}"
         try:
-            ordered = sort_rectilinear_polygon(points)
+            result = sort_rectilinear_polygon_with_holes(points)
             save_path = os.path.join(output_dir, f"{name}.png")
-            plot_sorted_polygon(ordered, title=name, save_path=save_path)
-            print(f"{name}: OK -> {ordered}")
+            if result['holes']:
+                plot_polygon_with_holes(result, title=name, save_path=save_path)
+                print(f"{name}: OK (outer + {len(result['holes'])} hole(s)) -> "
+                      f"outer={result['outer']}, holes={result['holes']}")
+            else:
+                plot_sorted_polygon(result['outer'], title=name, save_path=save_path)
+                print(f"{name}: OK -> {result['outer']}")
             print(f"    saved: {save_path}")
         except ValueError as e:
             print(f"{name}: FAILED -- {e}")

@@ -76,3 +76,7 @@
 # testcase16: two disconnected rectangles in one input -- must be
 # detected as "doesn't form a single closed loop", not merged incorrectly
 [(0,0),(2,0),(2,2),(0,2),(5,5),(7,5),(7,7),(5,7)]
+
+
+# rectilinear_polygon_with_holes
+[(0,0),(10,0),(10,10),(0,10),(3,3),(7,3),(7,7),(3,7)]

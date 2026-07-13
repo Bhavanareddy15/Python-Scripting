@@ -1,26 +1,18 @@
 """
 Core algorithm for reconstructing the boundary order of a simple,
 axis-aligned (rectilinear) polygon from an unordered point set.
+Also supports polygons with holes (e.g. a rectangle nested inside
+another rectangle, like a power ring / guard ring shape).
 """
 
 from collections import defaultdict
 
 
-def reconstruct_rectilinear_polygon(points):
-    """
-    Reconstruct boundary order via the even-odd parity rule: group points
-    sharing an x (or y) coordinate, sort by the other coordinate, and pair
-    them up (1st-2nd, 3rd-4th, ...) as real boundary edges. A line through
-    a simple polygon crosses its boundary an even number of times,
-    alternating inside/outside -- this holds for ANY simple orthogonal
-    polygon, star-shaped or not.
-
-    Starts at the leftmost point (ties broken by smallest y), walks the
-    boundary, and returns it in counter-clockwise order.
-    """
-    if len(points) < 4:
-        raise ValueError("Need at least 4 points for a rectilinear polygon")
-
+def _build_adjacency(points):
+    """Shared edge-building step: even-odd parity pairing on x and y
+    groups. Returns a dict mapping each point to its two boundary
+    neighbors. Raises if the input can't form a valid rectilinear
+    boundary at all (regardless of how many loops it forms)."""
     by_x = defaultdict(list)
     by_y = defaultdict(list)
     for p in points:
@@ -55,7 +47,10 @@ def reconstruct_rectilinear_polygon(points):
                               f"of 2 -- input is ambiguous or not a valid "
                               f"simple rectilinear polygon")
 
-    start = min(points, key=lambda p: (p[0], p[1]))
+    return adjacency
+
+
+def _walk_one_loop(adjacency, start):
     ordered = [start]
     prev, cur = None, start
     while True:
@@ -65,10 +60,51 @@ def reconstruct_rectilinear_polygon(points):
             break
         ordered.append(nxt)
         prev, cur = cur, nxt
+    return ordered
+
+
+def _walk_all_loops(points, adjacency):
+    """Repeatedly walk cycles until every point has been visited.
+    A single simple polygon produces one loop; a polygon with holes
+    (or genuinely disconnected shapes) produces more than one."""
+    visited = set()
+    loops = []
+    for p in sorted(set(points)):
+        if p in visited:
+            continue
+        loop = _walk_one_loop(adjacency, p)
+        visited.update(loop)
+        loops.append(loop)
+    return loops
+
+
+def reconstruct_rectilinear_polygon(points):
+    """
+    Reconstruct boundary order via the even-odd parity rule: group points
+    sharing an x (or y) coordinate, sort by the other coordinate, and pair
+    them up (1st-2nd, 3rd-4th, ...) as real boundary edges. A line through
+    a simple polygon crosses its boundary an even number of times,
+    alternating inside/outside -- this holds for ANY simple orthogonal
+    polygon, star-shaped or not.
+
+    Assumes a SINGLE simple polygon (no holes). Use
+    sort_rectilinear_polygon_with_holes for shapes that may have holes.
+
+    Starts at the leftmost point (ties broken by smallest y), walks the
+    boundary, and returns it in counter-clockwise order.
+    """
+    if len(points) < 4:
+        raise ValueError("Need at least 4 points for a rectilinear polygon")
+
+    adjacency = _build_adjacency(points)
+    start = min(points, key=lambda p: (p[0], p[1]))
+    ordered = _walk_one_loop(adjacency, start)
 
     if len(ordered) != len(points):
         raise ValueError("Reconstructed cycle doesn't include every point -- "
-                          "input may describe more than one disconnected shape")
+                          "input may describe more than one disconnected "
+                          "shape, or a polygon with a hole (see "
+                          "sort_rectilinear_polygon_with_holes)")
 
     if _signed_area(ordered) < 0:
         ordered = [ordered[0]] + ordered[1:][::-1]
@@ -81,6 +117,21 @@ def _signed_area(points):
     return sum(points[i][0] * points[(i + 1) % n][1] -
                points[(i + 1) % n][0] * points[i][1]
                for i in range(n)) / 2
+
+
+def _point_in_polygon(pt, poly):
+    """Standard ray-casting point-in-polygon test."""
+    x, y = pt
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            x_intersect = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+            if x < x_intersect:
+                inside = not inside
+    return inside
 
 
 def _segments_intersect(p1, p2, p3, p4):
@@ -123,9 +174,72 @@ def validate_simple_polygon(ordered_points):
 
 
 def sort_rectilinear_polygon(points):
-    """Full pipeline: reconstruct boundary order, then validate it."""
+    """Full pipeline for a SINGLE simple polygon (no holes): reconstruct
+    boundary order, then validate it."""
     ordered = reconstruct_rectilinear_polygon(points)
     valid, message = validate_simple_polygon(ordered)
     if not valid:
         raise ValueError(f"Validation failed: {message}")
     return ordered
+
+
+def sort_rectilinear_polygon_with_holes(points):
+    """
+    General version: handles a single simple polygon OR a polygon with
+    one or more holes (e.g. a rectangle nested inside another rectangle,
+    like a power ring / guard ring shape).
+
+    Returns {'outer': [...], 'holes': [[...], [...], ...]}
+    (outer wound CCW, each hole wound CW -- the standard convention).
+
+    Distinguishes a genuine hole (a loop fully contained within a larger
+    loop) from genuinely disconnected, unrelated shapes (raises a clear
+    error in that case instead of guessing).
+    """
+    if len(points) < 4:
+        raise ValueError("Need at least 4 points for a rectilinear polygon")
+
+    adjacency = _build_adjacency(points)
+    loops = _walk_all_loops(points, adjacency)
+
+    if sum(len(l) for l in loops) != len(points):
+        raise ValueError("Internal error: not all points were consumed while walking loops")
+
+    if len(loops) == 1:
+        outer = loops[0]
+        if _signed_area(outer) < 0:
+            outer = [outer[0]] + outer[1:][::-1]
+        result = {'outer': outer, 'holes': []}
+    else:
+        areas = [abs(_signed_area(l)) for l in loops]
+        outer_idx = areas.index(max(areas))
+        outer = loops[outer_idx]
+        others = [l for i, l in enumerate(loops) if i != outer_idx]
+
+        for loop in others:
+            cx = sum(p[0] for p in loop) / len(loop)
+            cy = sum(p[1] for p in loop) / len(loop)
+            if not _point_in_polygon((cx, cy), outer):
+                raise ValueError(
+                    "Input describes multiple disconnected shapes, not a "
+                    "single polygon with holes -- a loop is not contained "
+                    "within the largest loop"
+                )
+
+        if _signed_area(outer) < 0:
+            outer = [outer[0]] + outer[1:][::-1]
+
+        fixed_holes = []
+        for loop in others:
+            if _signed_area(loop) > 0:   # holes should wind CW (negative area)
+                loop = [loop[0]] + loop[1:][::-1]
+            fixed_holes.append(loop)
+
+        result = {'outer': outer, 'holes': fixed_holes}
+
+    for loop in [result['outer']] + result['holes']:
+        valid, message = validate_simple_polygon(loop)
+        if not valid:
+            raise ValueError(f"Validation failed: {message}")
+
+    return result
