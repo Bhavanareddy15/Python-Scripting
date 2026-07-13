@@ -1,0 +1,78 @@
+# =====================================================================
+# Corner-case test suite for reconstruct_rectilinear_polygon /
+# sort_rectilinear_polygon. Lines starting with # and blank lines are
+# skipped by main.py's loader. Each remaining line is one test case.
+# =====================================================================
+
+# --- Baseline sanity checks ---
+
+# testcase1: plain rectangle (simplest possible valid input)
+[(0,0),(6,0),(6,4),(0,4)]
+
+# testcase2: minimal valid rectilinear polygon (unit square, 4 points)
+[(0,0),(1,0),(1,1),(0,1)]
+
+# --- Single concavity ---
+
+# testcase3: L-shape (one reflex corner)
+[(0,0),(4,0),(4,2),(2,2),(2,4),(0,4)]
+
+# --- Multiple independent concavities ---
+
+# testcase4: T-shape
+[(0,4),(0,6),(6,6),(6,4),(4,4),(4,0),(2,0),(2,4)]
+
+# testcase5: Z-shape (single jog / dogleg)
+[(0,0),(3,0),(3,2),(5,2),(5,4),(2,4),(2,2),(0,2)]
+
+# --- Symmetric, multiple concavities, many points sharing one coordinate ---
+
+# testcase6: plus/cross shape (4 reflex corners, 4 points share each of x=2,x=3)
+[(0,2),(2,2),(2,0),(3,0),(3,2),(5,2),(5,3),(3,3),(3,5),(2,5),(2,3),(0,3)]
+
+# --- Not star-shaped: no single interior point sees every vertex ---
+
+# testcase7: H-shape (two legs block each other's line of sight)
+[(0,0),(2,0),(2,2),(4,2),(4,0),(6,0),(6,6),(4,6),(4,4),(2,4),(2,6),(0,6)]
+
+# testcase8: C-bracket / deep single notch with a thin connecting neck
+[(0,0),(6,0),(6,1),(1,1),(1,5),(6,5),(6,6),(0,6)]
+
+# --- Many points sharing the same x or y (stress test the parity pairing
+#     beyond the simple 2-points-per-line case) ---
+
+# testcase9: comb with 3 teeth -- 8 distinct x-values are shared by 2 points each
+[(0, 0), (1, 0), (1, 4), (2, 4), (2, 0), (3, 0), (3, 4), (4, 4), (4, 0), (5, 0), (5, 4), (6, 4), (6, 0), (7, 0), (7, 4), (8, 4), (8, 0), (10, 0), (10, 6), (0, 6)]
+
+# testcase10: E-shape -- x=2 and x=10 each touch 6 points
+[(0, 0), (10, 0), (10, 2), (2, 2), (2, 4), (10, 4), (10, 6), (2, 6), (2, 8), (10, 8), (10, 10), (0, 10)]
+
+# --- Many turns, non-star-shaped, no shared bottleneck like the C-bracket ---
+
+# testcase11: zigzag staircase corridor (4 turns, uniform width)
+[(0, 8), (2, 8), (2, 4), (4, 4), (4, 0), (10, 0), (10, 2), (8, 2), (8, 6), (6, 6), (6, 10), (0, 10)]
+
+# --- Extreme geometry ---
+
+# testcase12: extreme aspect ratio (20:1 sliver) -- stress-tests any
+# downstream metric code (e.g. min-feature-width) as well as the sorter
+[(0,0),(20,0),(20,1),(0,1)]
+
+# --- Coordinate system edge cases ---
+
+# testcase13: negative coordinates (shape not anchored at/near the origin)
+[(-3,-2),(3,-2),(3,2),(-3,2)]
+
+# testcase14: L-shape entirely in negative coordinate space
+[(-4,-4),(0,-4),(0,-2),(2,-2),(2,2),(-4,2)]
+
+# --- Deliberately invalid input: confirms error handling works rather
+#     than silently producing a wrong answer ---
+
+# testcase15: odd number of points at x=2 -- must raise a clear error,
+# not a wrong silent result
+[(0,0),(4,0),(4,4),(2,2),(0,4)]
+
+# testcase16: two disconnected rectangles in one input -- must be
+# detected as "doesn't form a single closed loop", not merged incorrectly
+[(0,0),(2,0),(2,2),(0,2),(5,5),(7,5),(7,7),(5,7)]

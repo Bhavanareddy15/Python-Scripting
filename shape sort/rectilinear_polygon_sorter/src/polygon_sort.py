@@ -1,21 +1,22 @@
+"""
+Core algorithm for reconstructing the boundary order of a simple,
+axis-aligned (rectilinear) polygon from an unordered point set.
+"""
+
 from collections import defaultdict
-import matplotlib.pyplot as plt
 
 
 def reconstruct_rectilinear_polygon(points):
     """
-    Reconstruct the boundary order of a simple, axis-aligned (rectilinear)
-    polygon from an unordered point set.
+    Reconstruct boundary order via the even-odd parity rule: group points
+    sharing an x (or y) coordinate, sort by the other coordinate, and pair
+    them up (1st-2nd, 3rd-4th, ...) as real boundary edges. A line through
+    a simple polygon crosses its boundary an even number of times,
+    alternating inside/outside -- this holds for ANY simple orthogonal
+    polygon, star-shaped or not.
 
-    Method: even-odd parity rule. Group points sharing an x (or y)
-    coordinate, sort by the other coordinate, and pair them up
-    (1st-2nd, 3rd-4th, ...) as real boundary edges -- a line through a
-    simple polygon must cross its boundary an even number of times,
-    alternating inside/outside. This holds for ANY simple orthogonal
-    polygon; no star-shaped / line-of-sight assumption needed.
-
-    Starts at the leftmost point (ties broken by smallest y), and walks
-    the reconstructed boundary counter-clockwise.
+    Starts at the leftmost point (ties broken by smallest y), walks the
+    boundary, and returns it in counter-clockwise order.
     """
     if len(points) < 4:
         raise ValueError("Need at least 4 points for a rectilinear polygon")
@@ -25,10 +26,6 @@ def reconstruct_rectilinear_polygon(points):
     for p in points:
         by_x[p[0]].append(p)
         by_y[p[1]].append(p)
-
-    print(by_x)
-    print(by_y)  
-    
 
     adjacency = defaultdict(list)
 
@@ -73,8 +70,7 @@ def reconstruct_rectilinear_polygon(points):
         raise ValueError("Reconstructed cycle doesn't include every point -- "
                           "input may describe more than one disconnected shape")
 
-    area = _signed_area(ordered)
-    if area < 0:
+    if _signed_area(ordered) < 0:
         ordered = [ordered[0]] + ordered[1:][::-1]
 
     return ordered
@@ -92,17 +88,27 @@ def _segments_intersect(p1, p2, p3, p4):
         return (c[1] - a[1]) * (b[0] - a[0]) - (b[1] - a[1]) * (c[0] - a[0])
     d1, d2 = ccw(p3, p4, p1), ccw(p3, p4, p2)
     d3, d4 = ccw(p1, p2, p3), ccw(p1, p2, p4)
-    return ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and \
-           ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0))
+    if ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and \
+       ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0)):
+        return True
+    return _collinear_overlap(p1, p2, p3, p4)
+
+
+def _collinear_overlap(a, b, c, d):
+    if a[0] == b[0] == c[0] == d[0]:
+        lo1, hi1 = sorted([a[1], b[1]])
+        lo2, hi2 = sorted([c[1], d[1]])
+        return max(lo1, lo2) < min(hi1, hi2)
+    if a[1] == b[1] == c[1] == d[1]:
+        lo1, hi1 = sorted([a[0], b[0]])
+        lo2, hi2 = sorted([c[0], d[0]])
+        return max(lo1, lo2) < min(hi1, hi2)
+    return False
 
 
 def validate_simple_polygon(ordered_points):
-    """
-    Safety-net check: confirms no two non-adjacent edges cross.
-    Returns (is_valid: bool, message: str).
-    Catches cases the parity-pairing rule could get wrong on
-    degenerate/ambiguous rectilinear layouts.
-    """
+    """Confirms no two non-adjacent edges cross (including collinear
+    overlaps). Returns (is_valid: bool, message: str)."""
     n = len(ordered_points)
     edges = [(ordered_points[i], ordered_points[(i + 1) % n]) for i in range(n)]
     for i in range(n):
@@ -123,46 +129,3 @@ def sort_rectilinear_polygon(points):
     if not valid:
         raise ValueError(f"Validation failed: {message}")
     return ordered
-
-
-def plot_sorted_polygon(ordered_points, title="Sorted polygon", save_path=None):
-    xs = [p[0] for p in ordered_points] + [ordered_points[0][0]]
-    ys = [p[1] for p in ordered_points] + [ordered_points[0][1]]
-
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.plot(xs, ys, '-o', color='#1D9E75', linewidth=1.5, markersize=5)
-
-    for i, (x, y) in enumerate(ordered_points):
-        ax.annotate(str(i), (x, y), textcoords="offset points",
-                    xytext=(8, 8), fontsize=10, color='#0F6E56')
-
-    sx, sy = ordered_points[0]
-    ax.plot(sx, sy, 'o', color='#D85A30', markersize=10, zorder=5)
-    ax.annotate("start", (sx, sy), textcoords="offset points",
-                xytext=(8, -14), fontsize=10, color='#993C1D')
-
-    ax.set_title(title)
-    ax.set_aspect('equal')
-    ax.grid(True, linestyle='--', alpha=0.3)
-
-    if save_path:
-        fig.savefig(save_path, dpi=150, bbox_inches='tight')
-    return fig
-
-
-if __name__ == "__main__":
-    import random
-
-    test_shapes = {
-        "plus_shape": [(5, 2), (5, 3), (2, 3), (0, 3), (2, 2), (3, 5), (3, 2),
-                        (2, 0), (0, 2), (3, 3), (2, 5), (3, 0)],
-        "c_bracket_shape": [(0, 0), (6, 0), (6, 1), (1, 1), (1, 5), (6, 5), (6, 6), (0, 6)],
-        "jdwk": [(5, 2), (5, 3), (2, 3), (0, 3), (2, 2), (3, 5), (3, 2), (2, 0), (0, 2), (3, 3), (2, 5), (3, 0)],
-    }
-
-    for name, pts in test_shapes.items():
-        shuffled = pts[:]
-        random.shuffle(shuffled)
-        result = sort_rectilinear_polygon(pts)
-        print(f"{name}: {result}")
-        plot_sorted_polygon(result, title=name, save_path=f"{name}.png")
