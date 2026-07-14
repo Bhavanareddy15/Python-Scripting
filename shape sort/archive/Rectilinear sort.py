@@ -30,25 +30,23 @@ def reconstruct_rectilinear_polygon(points):
         by_x[p[0]].append(p)
         by_y[p[1]].append(p)
 
-    print(by_x)
-    print(by_y)
 
     adjacency = defaultdict(list)
-
-    for x, group in by_x.items():
-        group.sort(key=lambda p: p[1])
-        if len(group) % 2 != 0:
-            raise ValueError(f"Odd number of points at x={x}; not a valid "
-                              f"simple rectilinear polygon")
-        for i in range(0, len(group), 2):
-            a, b = group[i], group[i + 1]
-            adjacency[a].append(b)
-            adjacency[b].append(a)
 
     for y, group in by_y.items():
         group.sort(key=lambda p: p[0])
         if len(group) % 2 != 0:
             raise ValueError(f"Odd number of points at y={y}; not a valid "
+                              f"simple rectilinear polygon")
+        for i in range(0, len(group), 2):
+            a, b = group[i], group[i + 1]
+            adjacency[a].append(b)
+            adjacency[b].append(a)
+    
+    for x, group in by_x.items():
+        group.sort(key=lambda p: p[1])
+        if len(group) % 2 != 0:
+            raise ValueError(f"Odd number of points at x={x}; not a valid "
                               f"simple rectilinear polygon")
         for i in range(0, len(group), 2):
             a, b = group[i], group[i + 1]
@@ -60,6 +58,7 @@ def reconstruct_rectilinear_polygon(points):
             raise ValueError(f"Point {p} has {len(neighbors)} edges instead "
                               f"of 2 -- input is ambiguous or not a valid "
                               f"simple rectilinear polygon")
+        
 
     start = min(points, key=lambda p: (p[0], p[1]))
     ordered = [start]
@@ -76,18 +75,12 @@ def reconstruct_rectilinear_polygon(points):
         raise ValueError("Reconstructed cycle doesn't include every point -- "
                           "input may describe more than one disconnected shape")
 
-    area = _signed_area(ordered)
-    if area < 0:
-        ordered = [ordered[0]] + ordered[1:][::-1]
+    
 
     return ordered
 
 
-def _signed_area(points):
-    n = len(points)
-    return sum(points[i][0] * points[(i + 1) % n][1] -
-               points[(i + 1) % n][0] * points[i][1]
-               for i in range(n)) / 2
+
 
 
 def _segments_intersect(p1, p2, p3, p4):
@@ -157,10 +150,7 @@ if __name__ == "__main__":
     import random
 
     test_shapes = {
-        "plus_shape": [(5, 2), (5, 3), (2, 3), (0, 3), (2, 2), (3, 5), (3, 2),
-                        (2, 0), (0, 2), (3, 3), (2, 5), (3, 0)],
-        "c_bracket_shape": [(0, 0), (6, 0), (6, 1), (1, 1), (1, 5), (6, 5), (6, 6), (0, 6)],
-        "jdwk": [(5, 2), (5, 3), (2, 3), (0, 3), (2, 2), (3, 5), (3, 2), (2, 0), (0, 2), (3, 3), (2, 5), (3, 0)],
+        "test": [(5, 2), (5, 3), (2, 3), (0, 3), (2, 2), (3, 5), (3, 2), (2, 0), (0, 2), (3, 3), (2, 5), (3, 0)],
     }
 
     for name, pts in test_shapes.items():
